@@ -1,22 +1,13 @@
 import logo from './logo.svg';
 import './App.css';
+import Registro from './components/Registro';
 
 function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <h1>Bem-vindo ao kanban</h1>
+        <Registro/> {/* <-- 2. Renderize nosso componente aqui */}
       </header>
     </div>
   );
