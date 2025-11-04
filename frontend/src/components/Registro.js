@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios'; // <-- 1. IMPORTAMOS O AXIOS
+import apiClient from '../api/axiosConfig';
+import { Link } from 'react-router-dom'; // <-- ADICIONE ESTA LINHA
 
 function Registro() {
     const [nome, setNome] = useState('');
@@ -21,7 +22,7 @@ function Registro() {
         // 5. USAMOS O AXIOS PARA FAZER O POST
         try {
             // Enviamos o 'novoUsuario' para a URL do nosso back-end
-            const response = await axios.post('http://localhost:8080/api/usuarios', novoUsuario);
+            const response = await apiClient.post('/api/usuarios', novoUsuario);
             
             console.log('Usuário registrado:', response.data);
             setMensagem(`Usuário ${response.data.nome} registrado com sucesso! (ID: ${response.data.id})`);
@@ -80,6 +81,12 @@ function Registro() {
             
             {/* 6. EXIBIMOS A MENSAGEM DE SUCESSO OU ERRO */}
             {mensagem && <p>{mensagem}</p>}
+
+            <p>
+                  Já tem uma conta? <Link to="/login">Faça o login aqui</Link>
+            </p>
+
+
         </div>
     );
 }
