@@ -12,6 +12,9 @@ import Dashboard from './components/Dashboard';
 // --- Import do Nosso "Segurança da Boate" ---
 import ProtectedRoute from './components/ProtectedRoute';
 
+// --- Import do Núcleo do Kanban (Fase 3) ---
+import PaginaQuadro from './components/PaginaQuadro'; 
+
 
 /**
  * -------------------------------------------------------------------------------------
@@ -19,16 +22,13 @@ import ProtectedRoute from './components/ProtectedRoute';
  * ANALOGIA: O "Controlador de Tráfego" (ou "Mapa Principal")
  * -------------------------------------------------------------------------------------
  * * Este é o componente "pai" de toda a nossa aplicação.
- * * O 'index.js' chama este arquivo, e este arquivo decide
- * qual "página" (componente) deve ser mostrada.
+ * * Ele define o "Mapa" do site e aplica a segurança de forma declarativa.
  */
 function App() {
   return (
     /**
      * <BrowserRouter>
-     * O "cérebro" do Roteador. Ele deve "abraçar" (ser pai de)
-     * toda a sua aplicação que depende de rotas. Ele "lê" a URL
-     * do navegador (ex: /login) e informa aos seus filhos.
+     * O "cérebro" do Roteador. Ele lê a URL do navegador (ex: /login) e informa aos filhos.
      */
     <BrowserRouter>
       <div className="App">
@@ -37,67 +37,35 @@ function App() {
           
           {/*
            * <Routes>
-           * O "Livro de Regras" do Roteador.
-           * Ele olha a URL atual e renderiza a *primeira* <Route>
-           * que "bater" (match) com o 'path' (caminho).
+           * O "Livro de Regras" do Roteador. Renderiza a *primeira* <Route> que der "match".
            */}
           <Routes>
             
             {/* -------------------------------------------------- */}
-            {/* GRUPO 1: Rotas Públicas */}
-            {/* (O usuário NÃO precisa estar logado para vê-las) */}
+            {/* GRUPO 1: Rotas Públicas (Fase 2) */}
             {/* -------------------------------------------------- */}
-
-            {/* A rota "index" (padrão) */}
-            {/* 'index' é um atalho para 'path="/"'. Se o usuário acessar */}
-            {/* 'http://localhost:3000/', ele verá o componente de Login. */}
-            <Route index element={<Login />} /> 
-            
-            {/* A rota de Login (explícita) */}
-            {/* Se o usuário acessar '/login', ele também vê o Login. */}
+            <Route index element={<Login />} />      {/* Rota Padrão (/) */}
             <Route path="/login" element={<Login />} />
-            
-            {/* A rota de Registro */}
-            {/* Se o usuário acessar '/registrar', ele vê o Registro. */}
             <Route path="/registrar" element={<Registro />} />
             
             
             {/* -------------------------------------------------- */}
-            {/* GRUPO 2: Rotas Protegidas */}
-            {/* (O usuário SÓ pode ver se estiver logado) */}
+            {/* GRUPO 2: Rotas Protegidas (Fases 2 e 3) */}
             {/* -------------------------------------------------- */}
-
-            {/*
-             * A MÁGICA: A "Rota de Layout" (O "Segurança da Boate")
-             * Esta <Route> não tem um 'path'. Ela apenas tem um 'element'.
-             * Isso a transforma em uma "rota pai" ou "invólucro".
-             *
-             * Ela diz: "Para QUALQUER rota 'filha' definida aqui dentro,
-             * você deve PRIMEIRO renderizar o meu 'element', que é o
-             * <ProtectedRoute />."
-             */}
+            
+            {/* 1. O "Invólucro de Proteção" */}
             <Route element={<ProtectedRoute />}>
               
-              {/*
-               * A Rota "Filha" (Protegida)
-               * Como esta rota está "aninhada" (é filha) da rota acima,
-               * ela só será renderizada se o <ProtectedRoute /> permitir
-               * (ou seja, se o usuário tiver o token).
-               *
-               * Se o <ProtectedRoute> permitir, ele vai renderizar o <Outlet />,
-               * e o React vai "encaixar" o <Dashboard /> nesse <Outlet>.
-               */}
+              {/* 2. Rota do Dashboard (Lista de Quadros) */}
               <Route path="/dashboard" element={<Dashboard />} />
               
-              {/*
-               * EXEMPLO FUTURO:
-               * Se quiséssemos adicionar uma página de "Perfil" (que também
-               * precisa de login), nós simplesmente a adicionaríamos aqui:
-               * <Route path="/perfil" element={<Perfil />} />
-               * Ela automaticamente ganharia a "proteção" do pai.
-               */}
+              {/* 3. Rota de Detalhe do Quadro (Fase 3) */}
+              {/* Esta rota usa um PARÂMETRO DINÂMICO (:id) */}
+              {/* Ex: Se a URL for /quadro/5, o componente PaginaQuadro vai ler o ID "5" */}
+              <Route path="/quadro/:id" element={<PaginaQuadro />} /> 
               
-            </Route> {/* Fim do "invólucro" de proteção */}
+            </Route>
+            {/* -------------------------------------------------- */}
 
           </Routes>
         </header>

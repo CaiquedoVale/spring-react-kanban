@@ -1,96 +1,128 @@
 package com.kanban.backend.controller;
 
 // Imports do NOSSO Projeto
-import com.kanban.backend.model.Quadro;   // A entidade "Quadro"
-import com.kanban.backend.model.Usuario; // A entidade "Usuario"
-import com.kanban.backend.repository.QuadroRepository; // O "Arquivista" de Quadros
+import com.kanban.backend.dto.QuadroRequestDTO;
+import com.kanban.backend.model.Quadro;
+import com.kanban.backend.model.Usuario;
+import com.kanban.backend.repository.QuadroRepository;
+import com.kanban.backend.service.QuadroService; 
 
 // Imports do Spring
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity; // Permite retornar respostas HTTP (ex: 200 OK)
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable; // <-- NOVO: Para ler o ID da URL
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 // Imports do Spring Security
-import org.springframework.security.core.Authentication; // O "pacote" que guarda a identidade do usuário
-import org.springframework.security.core.context.SecurityContextHolder; // O "cofre" que guarda a autenticação
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
 /**
  * -------------------------------------------------------------------------------------
  * ARQUIVO: QuadroController.java
- * ANALOGIA: O "Porteiro dos Quadros"
+ * ANALOGIA: O "Gerente de Quadros" (e Porteiro das Rotas Protegidas)
  * -------------------------------------------------------------------------------------
- * * @RestController: Diz ao Spring que esta classe é um "Porteiro" (Controller)
- * e que suas respostas serão em JSON.
- * * * @RequestMapping("/api/quadros"): Define o "endereço base" deste porteiro.
- * Todas as "portas" (endpoints) aqui dentro começam com "/api/quadros".
- * * IMPORTANTE: No 'SecurityConfig', nós definimos que QUALQUER requisição
- * (exceto login/registro) precisa do "crachá" 'ROLE_USER'. Isso significa
- * que o "Guarda-Costas" ('SecurityFilter') vai rodar ANTES de qualquer
- * método nesta classe ser chamado.
+ * * O Controller responsável por todas as operações (CRUD) nos Quadros.
+ * * É o único ponto de acesso do Front-end para a gestão de Quadros.
  */
 @RestController
 @RequestMapping("/api/quadros")
 public class QuadroController {
 
-    // 1. "CONTRATANDO" O ARQUIVISTA
-    // Pede ao Spring que "injete" (nos dê uma instância) do 'QuadroRepository'
-    // que criamos.
+    // 1. INJEÇÃO DO ARQUIVISTA (QuadroRepository)
     @Autowired
     private QuadroRepository quadroRepository;
 
+    // 2. INJEÇÃO DO ESPECIALISTA (QuadroService)
+    @Autowired
+    private QuadroService quadroService; 
+    
+    
+    // ---------------------------------------------------------------------------------
+    // ENDPOINT 1: Listar Todos os Quadros do Usuário
+    // ---------------------------------------------------------------------------------
     /**
-     * -------------------------------------------------------------------------------------
-     * ENDPOINT: Listar Quadros do Usuário
-     * -------------------------------------------------------------------------------------
-     * * @GetMapping: Define que esta "porta" atende no endereço "base" do controller,
-     * ou seja, "GET /api/quadros".
-     * * * ResponseEntity<List<Quadro>>: Define que a resposta será um "pacote" HTTP
-     * que contém uma Lista de Quadros (em JSON).
+     * Rota: GET /api/quadros
+     * Objetivo: Buscar e listar todos os quadros que pertencem ao usuário logado.
      */
     @GetMapping
     public ResponseEntity<List<Quadro>> getQuadrosDoUsuario() {
         
-        // ---------------------------------------------------------------------------------
-        // PASSO 1: QUEM ESTÁ ME PERGUNTANDO?
-        // ---------------------------------------------------------------------------------
-        //
-        // Nós precisamos saber "quem" é o usuário logado para filtrar os quadros.
-        // Como o 'SecurityFilter' (Guarda-Costas) já rodou, ele já
-        // validou o "Passaporte" (Token) e guardou a identidade do usuário
-        // no "Cofre de Segurança" (o SecurityContextHolder).
-        //
-        // 1. Pega o "Cofre"
+        // PASSO 1: Identifica o usuário logado (Autenticado pelo SecurityFilter)
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        // 2. Pega o "Dossiê" (o 'Principal') de dentro do cofre.
-        //    (Nós sabemos que o 'Principal' é o nosso objeto 'Usuario'
-        //     porque foi isso que colocamos lá no 'UserAuthService').
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
 
-        // ---------------------------------------------------------------------------------
-        // PASSO 2: BUSCAR OS DADOS
-        // ---------------------------------------------------------------------------------
-        //
-        // Agora que sabemos "quem" está logado, pedimos ao "Arquivista" (Repositório)
-        // para buscar no banco de dados.
-        // Chamamos o método 'findByUsuario' que nós mesmos criamos na interface.
+        // PASSO 2: Chama o Arquivista otimizado (findByUsuario com @EntityGraph)
         List<Quadro> quadros = quadroRepository.findByUsuario(usuarioLogado);
 
-        // ---------------------------------------------------------------------------------
-        // PASSO 3: RESPONDER
-        // ---------------------------------------------------------------------------------
-        //
-        // .ok(quadros): Esta é uma forma elegante de dizer:
-        // "Retorne um status HTTP 200 OK e coloque a 'lista de quadros'
-        //  no corpo (body) da resposta."
-        // O Spring vai automaticamente converter a List<Quadro> para um JSON [ ... ]
-        // (que estará vazio, `[ ]`, se o usuário não tiver quadros).
-        return ResponseEntity.ok(quadros);
+        // PASSO 3: Retorna 200 OK com a lista de quadros.
+        return ResponseEntity.ok(quadros);   
     }
+
     
-    // (Mais tarde, na Fase 3, adicionaremos os métodos POST, GET por ID, etc. aqui)
+    // ---------------------------------------------------------------------------------
+    // ENDPOINT 2: Criar um Novo Quadro
+    // ---------------------------------------------------------------------------------
+    /**
+     * Rota: POST /api/quadros
+     * Objetivo: Criar um novo Quadro E as três Colunas padrão para ele.
+     */
+    @PostMapping
+    public ResponseEntity<Quadro> criarQuadro(@RequestBody QuadroRequestDTO quadroRequest) {
+        
+        // PASSO 1: Identifica o usuário logado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
+
+        // PASSO 2: Chama o Especialista (QuadroService)
+        // O serviço encapsula a lógica de "Criar Quadro + Criar Colunas".
+        Quadro novoQuadro = quadroService.criarQuadroComColunasPadrao(
+            quadroRequest.getNome(),
+            usuarioLogado
+        );
+
+        // PASSO 3: Retorna 201 Created (sucesso na criação)
+        return ResponseEntity.status(201).body(novoQuadro);
+    }
+
+    
+    // ---------------------------------------------------------------------------------
+    // ENDPOINT 3: Buscar Quadro por ID
+    // ---------------------------------------------------------------------------------
+    /**
+     * Rota: GET /api/quadros/{id}
+     * Objetivo: Busca um Quadro específico e garante que o usuário logado é o dono.
+     * @PathVariable Long id: Lê o ID que veio na URL (ex: /api/quadros/5).
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Quadro> getQuadroPorId(@PathVariable Long id) {
+        
+        // 1. Identifica o usuário logado
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
+
+        // 2. Busca o Quadro otimizado (findById com @EntityGraph)
+        Quadro quadro = quadroRepository.findById(id)
+            .orElse(null); 
+
+        // 3. CHECAGEM DE SEGURANÇA 1: O quadro existe?
+        if (quadro == null) {
+            return ResponseEntity.notFound().build(); // 404 Not Found
+        }
+
+        // 4. CHECAGEM DE SEGURANÇA 2: O usuário é o dono? (Regra de Negócio)
+        // Se o ID do dono do quadro for diferente do ID do usuário logado, nega o acesso.
+        if (!quadro.getUsuario().getId().equals(usuarioLogado.getId())) {
+            return ResponseEntity.status(403).build(); // 403 Forbidden (Acesso negado)
+        }
+        
+        // 5. Sucesso! Retorna 200 OK com o Quadro (e suas colunas).
+        return ResponseEntity.ok(quadro);
+    }
 }

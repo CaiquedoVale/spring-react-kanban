@@ -1,70 +1,156 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom'; // O "Teletransportador" (para redirecionar)
+import React, { useState, useEffect } from 'react'; // 'useState' (memória) e 'useEffect' (efeito)
+import { Link, useNavigate } from 'react-router-dom'; // 'Link' (navegação) e 'useNavigate' (redirecionamento)
+import apiClient from '../api/axiosConfig'; // O "Mensageiro Inteligente" (já anexa o token)
 
 /**
  * -------------------------------------------------------------------------------------
- * ARQUIVO: Dashboard.js
- * ANALOGIA: O "Quartel-General" (A "Área Segura")
+ * ARQUIVO: Dashboard.js (Versão 3.0)
+ * ANALOGIA: O "Painel de Controle" e Listagem de Quadros
  * -------------------------------------------------------------------------------------
- * * O que é?
- * Este é o componente "pai" da área logada. É a primeira página que o
- * usuário vê após o login (porque o 'Login.js' o redireciona para cá).
- *
- * * Como está protegido?
- * O 'App.js' definiu que esta rota ('/dashboard') é "filha" do
- * 'ProtectedRoute' ("Segurança da Boate"). Portanto, o usuário
- * só consegue *ver* este componente se ele tiver um 'jwtToken' válido.
+ * * Este componente é a "casa" do usuário logado.
+ * * Ele é responsável por: 1) Buscar a lista de quadros. 2) Permitir a criação de novos quadros.
  */
 function Dashboard() {
-
-    // 1. "CONTRATANDO" O TELETRANSPORTADOR
-    // Pegamos a função 'navigate' do 'useNavigate' hook.
     const navigate = useNavigate();
 
+    // ---------------------------------------------------------------------------------
+    // "MEMÓRIA" DO COMPONENTE (Estados)
+    // ---------------------------------------------------------------------------------
+    const [quadros, setQuadros] = useState([]);         // Armazena a lista de quadros vindos da API
+    const [mensagem, setMensagem] = useState('Carregando quadros...'); // Mensagem de feedback
+    const [novoQuadroNome, setNovoQuadroNome] = useState(''); // Armazena o texto digitado para novo quadro
+    
+    
     /**
      * ---------------------------------------------------------------------------------
-     * A "AÇÃO" DE SAIR (Handler de Logout)
+     * FUNÇÃO DE BUSCA (Core da Listagem)
      * ---------------------------------------------------------------------------------
-     * Esta função é chamada quando o usuário clica no botão "Sair".
+     * Busca a lista de quadros do usuário na API protegida.
+     * Deixamos a função FORA do useEffect para que a possamos chamar novamente
+     * *após a criação* de um novo quadro.
      */
+    const fetchQuadros = async () => {
+        try {
+            // 1. CHAMA A API PROTEGIDA (O 'apiClient' anexa o token automaticamente)
+            const response = await apiClient.get('/api/quadros');
+            
+            // 2. SUCESSO! Salva a lista na "memória"
+            setQuadros(response.data);
+
+            // 3. Atualiza a mensagem de feedback
+            if (response.data.length === 0) {
+                setMensagem('Você ainda não tem quadros. Crie um!');
+            } else {
+                setMensagem('');
+            }
+
+        } catch (error) {
+            // 4. FALHA DE SEGURANÇA (Token expirado/Inválido)
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                // Se a API nos rejeita, assumimos que o token é ruim
+                localStorage.removeItem('jwtToken');
+                navigate('/login'); // Escolta o usuário para a página de login
+            } else {
+                console.error('Erro ao buscar quadros:', error);
+                setMensagem('Erro ao carregar quadros. Tente recarregar a página.');
+            }
+        }
+    };
+
+    
+    /**
+     * ---------------------------------------------------------------------------------
+     * LÓGICA DE CRIAÇÃO (Core da Criação)
+     * ---------------------------------------------------------------------------------
+     * É chamada quando o formulário "Criar Novo Quadro" é submetido.
+     */
+    const handleCreateQuadro = async (event) => {
+        event.preventDefault();
+
+        if (!novoQuadroNome.trim()) {
+            alert("O nome do quadro não pode estar vazio.");
+            return;
+        }
+
+        try {
+            // 1. CHAMA A API POST /api/quadros (O serviço cria o Quadro + 3 Colunas)
+            await apiClient.post('/api/quadros', { nome: novoQuadroNome });
+            
+            // 2. SUCESSO! Limpa o campo de texto
+            setNovoQuadroNome('');
+            
+            // 3. RECUPERA A LISTA DE DADOS ATUALIZADA
+            // Chamamos a função de busca novamente, o que força o componente a
+            // buscar a nova lista do Back-End e renderizar o quadro recém-criado.
+            await fetchQuadros(); 
+
+        } catch (error) {
+            console.error('Erro ao criar quadro:', error);
+            alert('Falha ao criar quadro. Tente novamente.');
+        }
+    };
+
+    
+    /**
+     * ---------------------------------------------------------------------------------
+     * HOOK DE EFEITO (Carregamento Inicial)
+     * ---------------------------------------------------------------------------------
+     */
+    useEffect(() => {
+        // Quando o componente carrega, chame a função de busca.
+        fetchQuadros();
+    }, [navigate, fetchQuadros]); // <-- CORRETO: Incluímos 'fetchQuadros' e 'navigate' nas dependências para evitar avisos do React.
+
+    
+    // Função de Logout (continua igual)
     const handleLogout = () => {
-        
-        // PASSO 1: "Queimar o Passaporte"
-        // Nós removemos o 'jwtToken' do "Cofre" (localStorage).
-        // A partir deste exato momento, o 'ProtectedRoute' (Segurança)
-        // passará a considerar o usuário como "não autenticado".
         localStorage.removeItem('jwtToken');
-        
-        // PASSO 2: "Escolta para a Saída"
-        // "Teletransportamos" (redirecionamos) o usuário de volta
-        // para a "Área Pública" (a página de Login).
         navigate('/login');
     };
 
-    /**
-     * ---------------------------------------------------------------------------------
-     * O "VISUAL" (Renderização do JSX)
-     * ---------------------------------------------------------------------------------
-     */
+    // ---------------------------------------------------------------------------------
+    // O "VISUAL" (Renderização do JSX)
+    // ---------------------------------------------------------------------------------
     return (
         <div>
             <h2>Dashboard</h2>
-            <p>Você está logado!</p>
-            
-            {/*
-             * Este é o placeholder que pausamos na Fase 3.
-             * Na próxima etapa, vamos substituir este <p> pela
-             * lógica de 'useEffect' para *buscar* e *mostrar*
-             * os quadros da API 'GET /api/quadros'.
-             */}
-            {/* Na Fase 3, nossos "Quadros" (Boards) vão aparecer aqui */}
-
-            <br /> 
-            
-            {/* "Quando este botão for 'clicado', chame a função handleLogout" */}
             <button onClick={handleLogout}>
                 Sair (Logout)
             </button>
+            
+            <hr />
+
+            <h3>Criar Novo Quadro</h3>
+            <form onSubmit={handleCreateQuadro}>
+                <input
+                    type="text"
+                    placeholder="Nome do Novo Quadro"
+                    value={novoQuadroNome}
+                    onChange={(e) => setNovoQuadroNome(e.target.value)}
+                    required
+                />
+                <button type="submit">Criar Quadro</button>
+            </form>
+            <hr />
+            
+            <h3>Seus Quadros</h3>
+            {/* Lógica de Renderização (MAP) */}
+            {/* Se a lista estiver vazia, mostra a mensagem, senão, mapeia a lista */}
+            {quadros.length === 0 ? (
+                <p>{mensagem}</p>
+            ) : (
+                <ul>
+                    {/* .map() renderiza cada quadro como um item clicável */}
+                    {quadros.map(quadro => (
+                        <li key={quadro.id}>
+                            {/* O Link nos leva para a rota protegida /quadro/[ID] */}
+                            <Link to={`/quadro/${quadro.id}`}>
+                                {quadro.nome}
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
